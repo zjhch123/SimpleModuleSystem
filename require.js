@@ -3,7 +3,7 @@ const requirejs = (() => {
 
   document.addEventListener('moduleExported', function() {
     ;[...Object.values(modules)]
-      .filter(m => m.status === 'Loaded' && canDoModuleExports(m))
+      .filter(canDoModuleExports)
       .forEach(doModuleExports)
   })
 
@@ -11,8 +11,15 @@ const requirejs = (() => {
     return `anonymous@${parseInt(Math.random() * 1000)}`
   }
 
-  function resolvePath(path) {
-    path = path.endsWith('.js') ? path : path + '.js'
+  function resolveDependence(pathOrName) {
+    for (let key in modules) {
+      const module = modules[key]
+      if (module.moduleName === pathOrName) {
+        return module.modulePath
+      }
+    }
+
+    const path = pathOrName.endsWith('.js') ? pathOrName : pathOrName + '.js'
     const a = document.createElement('a')
     a.href = path
     return a.href
@@ -54,7 +61,7 @@ const requirejs = (() => {
       ...modules[modulePath],
       moduleName,
       moduleFunction,
-      dependencies: dependencies.map(resolvePath),
+      dependencies: dependencies.map(resolveDependence),
     }
 
     analyseModule(modules[modulePath])
@@ -62,6 +69,10 @@ const requirejs = (() => {
 
   function canDoModuleExports(module) {
     if (module.status !== 'Loaded') {
+      return false
+    }
+
+    if (module.moduleExports !== null && typeof module.moduleExports !== 'undefined') {
       return false
     }
 
@@ -121,6 +132,7 @@ const requirejs = (() => {
 
   return {
     getRandomName,
+    canDoModuleExports,
     define(dependencies, moduleName, moduleFunction) {
       const modulePath = getCurrentScript()
 
@@ -138,7 +150,7 @@ const requirejs = (() => {
         modulePath,
         moduleFunction,
         moduleExports: null,
-        dependencies: dependencies.map(resolvePath),
+        dependencies: dependencies.map(resolveDependence),
       }
 
       modules[modulePath] = module
